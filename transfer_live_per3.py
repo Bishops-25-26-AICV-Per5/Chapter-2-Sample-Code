@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-BATCH_SIZE = 4
+BATCH_SIZE = 32
 
 tf.keras.utils.set_random_seed(37)
 
@@ -27,3 +27,37 @@ validation = validation.map(lambda x, y:
 train = train.cache().prefetch(buffer_size = tf.data.AUTOTUNE)
 validation = validation.cache().prefetch(buffer_size = tf.data.AUTOTUNE)
 
+# Load and apply the ResNet50 algorithm to our data.
+res = tf.keras.applications.resnet50.ResNet50(
+    include_top = False,
+    input_shape = (224, 224, 3),    
+    pooling = "max",
+)
+# ResNet comes pre-trained to find features.  We don't want to mess with that.
+res.trainable = False
+
+inputs = tf.keras.Input((224, 224, 3))
+outputs = res(inputs)
+# Need this if we don't pool in ResNet
+# outputs = tf.keras.layers.Flatten()(outputs)
+outputs = tf.keras.layers.Dense(5, activation="softmax")(outputs)
+
+# Optimizer is the function that describes how the training is computed.
+optimizer = tf.keras.optimizers.Adam(learning_rate = 0.0001)
+# Loss is the function that measures the distance from the prediction to
+#   the actual label.
+loss = tf.keras.losses.CategoricalCrossentropy()
+
+model = tf.keras.Model(inputs, outputs)
+model.compile(
+    optimizer = optimizer,
+    loss = loss,
+    metrics = ['accuracy'],
+)
+
+model.fit(
+    train,
+    epochs = 5,
+    verbose = 1, # If writing to screen, use 1.  To file, use 2.
+    validation_data = validation,
+)
